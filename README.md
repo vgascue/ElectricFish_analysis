@@ -1,4 +1,4 @@
-# efish_analysis
+# Electric fish analysis
 
 Este repositorio contiene scripts para analizar los datos obtenidos de la estacion conductual de peces eléctricos de Facultad de Ciencias (Dentro del sub repositorio - Gymnotus omarorum). Contiene analisis exploratorios asi como más generales para los registros eléctricos y el trackeo realizado por DeepLabCut sobre los videos.
 Cada archivo está comentado y con una breve introducciôn al comienzo. Los detalles de funcionamiento de cada script se encontrara en los comentarios, en este documento hacemos una recorrida general por el repositorio.  
@@ -27,7 +27,7 @@ A continuación se detalla la funcionalidad de cada archivo y un sugerido workfl
                 Por cada pez se tendrá un archivo '.pkl' salido de este script que guarda el diccionario generado. 
 
                 La estructura del archivo .pkl es la siguiente:
-                ![data](data.png)
+                ![/images/data.png](https://github.com/vgascue/ElectricFish_analysis/blob/main/images/data.png?raw=true)
 
             2. get_centroids.ipynb: 
                 Este script toma los archivos '.h5' obtenidos de DLC y genera un diccionario con los centroides (mediana de la posicion del pez) para cada frame, para cada video. Las keys del diccionario son los nombres de los archivos de video y cada elemento contiene una lista con los pares [x,y] de la posicion (en pixeles) del centroide en esa frame. 
