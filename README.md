@@ -9,6 +9,7 @@ A continuación se detalla la funcionalidad de cada archivo y un sugerido workfl
 
 - Scripts de exploración: 
         Estos scripts son normalmente cuadernos de jupyter organizados en celdas para un mejor troubleshooting de los analisis asi como la organizacion de los datos. 
+        
             1. Exploratory_EOD_GO.ipynb: 
                 Este script lee un archivo '.bin' (salida del workflow de Bonsai, conteniendo el registro electrico) y otros parametros como el numero de canales (2) y la frecuencia de muestreo. Luego, a lo largo de las celdas se irá analizando el registro eléctrico para evaluar la relación señal-ruido y, ultimamente, determinar el umbral a utilizar para detectar las DOEs para un determinado pez. Al final encuentra las DOEs para un determinado umbral y plotea la Frecuencia Basal vs. tiempo para corroborar la correcta detección. 
             
