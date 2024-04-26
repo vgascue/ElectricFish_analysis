@@ -26,5 +26,8 @@ A continuación se detalla la funcionalidad de cada archivo y un sugerido workfl
                 El diccionario que guarda es un diccionario que contiene dos diccionarios: FB-DOE y Peak-time. Cada uno de estos diccionarios cuenta con un elemento por archivo cuya key es el nombre del archivo y el valor es un vector de FB-DOE y Peak-Time de cada archivo, respectivamete. Luego, este diccionario se utiliza en otros scripts para no re-detectar DOEs ni re-calcular la frecuencia basal. 
                 Por cada pez se tendrá un archivo '.pkl' salido de este script que guarda el diccionario generado. 
 
+                La estructura del archivo .pkl es la siguiente:
+                ![data](data.png)
+
             2. get_centroids.ipynb: 
                 Este script toma los archivos '.h5' obtenidos de DLC y genera un diccionario con los centroides (mediana de la posicion del pez) para cada frame, para cada video. Las keys del diccionario son los nombres de los archivos de video y cada elemento contiene una lista con los pares [x,y] de la posicion (en pixeles) del centroide en esa frame. 
