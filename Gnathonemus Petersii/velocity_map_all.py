@@ -27,38 +27,28 @@ def get_centroids(track, n_keypoints):
         centroids.append([median_xposition[j], median_yposition[j]])
     return centroids
 
-def calculate_velocity(centroids, sf, pix_to_cm):
-    desplazamiento = [distance.euclidean(x,y)*pix_to_cm for x, y in zip(centroids[1:], centroids[:-1])]
-    dt = len(centroids) / sf
+
+def calculate_velocity(x, sf, pix_to_cm):
+    desplazamiento = [abs(distance.euclidean(x,y)/pix_to_cm) for x, y in zip(x[1:], x[:-1])]
+    dt = 1 / sf
     v = [i/dt for i in desplazamiento]
-
     return v
-
-def calculate_acceleration(velocities, sf):
-    dt = len(velocities) / sf
-    acc = [abs(value-velocities[i-1])/dt for i, value in enumerate(velocities, start=1)]
-
-    return acc
 
 def plot_map(grid, objCoordinates,cmap, label,filename, vmax=None,vmin=None):
     fig, ax = plt.subplots()
     plt.imshow(grid, cmap=cmap, vmax=vmax, vmin=vmin, origin='lower')
     cbar = plt.colorbar()
     cbar.set_label(label)
+    plt.scatter(objCoordinates[0]/12, objCoordinates[1]/12, s=100, c='r')
     plt.show()
-    #plt.scatter(objCoordinates[1]/10, objCoordinates[0]/10, s=100, c='k')
     fig.savefig(filename, format='svg', dpi=1200)
 
 ###
-folder = '/Volumes/Seagate Por 7/Pose Estimation_F4'
+folder = r'D:\datos_GPetersii\datos_GPetersii\Fish7\Object\Pose Estimation'
 os.chdir(folder)
-files = sorted(glob.glob('*0.h5'))
+files = sorted(glob.glob('*.h5'))
+files = files[:12]
 print('hay ' + str(len(files)) + ' archivos')
-
-#cargamos el archivo de FB-DOE
-with open('fish4_FB-DOE.pkl', 'rb') as file:   #cambiar al nombre apropiado de archivo
-        FB_doe = pickle.load(file)
-files_start = [datetime.strptime(key[:-1], '%Y-%m-%dT%H_%M_%S') for key in FB_doe['FB-DOE'].keys()]
 
 dinamics = {'velocity':{}, 'acceleration':{}}
 for file in files:
@@ -70,57 +60,60 @@ for file in files:
     vel_per_frame = pd.DataFrame(zip([round(x[0]/12) for x in centroids], [round(y[1]/12) for y in centroids], velocity), columns=['x', 'y', 'v'])
     dinamics['velocity'][file] = vel_per_frame
 
-    acc = calculate_acceleration(velocity, sf=50)
-    acc_per_frame = pd.DataFrame(zip([round(x[0]/12) for x in centroids], [round(y[1]/12) for y in centroids], acc), columns=['x', 'y', 'a'])
+    #acc = calculate_acceleration(velocity, sf=50)
+    #acc_per_frame = pd.DataFrame(zip([round(x[0]/12) for x in centroids], [round(y[1]/12) for y in centroids], acc), columns=['x', 'y', 'a'])
 
-    dinamics['acceleration'][file] = acc_per_frame
+    #dinamics['acceleration'][file] = acc_per_frame
     del track, velocity, centroids
-    print('archivo' + str(file))
+    #print('archivo' + str(file))
 
 v_frame_all = pd.DataFrame()
 for key, vel_per_frame in dinamics['velocity'].items():
     v_frame_all = pd.concat((v_frame_all, vel_per_frame))
 
-a_frame_all = pd.DataFrame()
-for key, a_per_frame in dinamics['acceleration'].items():
-    a_frame_all = pd.concat((a_frame_all, a_per_frame))
+#a_frame_all = pd.DataFrame()
+#for key, a_per_frame in dinamics['acceleration'].items():
+ #   a_frame_all = pd.concat((a_frame_all, a_per_frame))
 
 dinamics_frame_all = v_frame_all
-dinamics_frame_all['a'] = a_frame_all['a']
+#dinamics_frame_all['a'] = a_frame_all['a']
 dinamics_frame_all = dinamics_frame_all.reset_index()
-grouped = dinamics_frame_all.groupby(['x', 'y']).median().reset_index()
-
-freq_vs_t = pd.DataFrame()
-for key, freq in FB_doe['FB-DOE'].items():
-    freq_vs_t = pd.concat((freq_vs_t, pd.DataFrame(freq)))
-peak_time = pd.DataFrame()
-i = 0
-for key, peakT in FB_doe['Peak-time'].items():
-    peak_time = pd.concat((peak_time, pd.DataFrame([p/1000+(i*60000) for p in peakT])))
-    i+=1
-
-freq_vs_t['T_vid_scale'] = peak_time 
-print(dinamics_frame_all)
-##fvs.t + v vs. t
-fig, ax = plt.subplots()
-ax1 = ax.twinx()
-ax.scatter(freq_vs_t['T_vid_scale'], freq_vs_t[0], c='k')
-ax1.scatter(dinamics_frame_all.index, dinamics_frame_all['v'], c='r', alpha=.5)
-plt.show()
 
 ## mapas
-#v_grid = np.zeros(shape=(63,62))
+v_grid = np.zeros(shape=(63,62))
 #a_grid = np.zeros(shape=(63,62))
 #n_grid = np.zeros(shape=(63,62))
 
-#for index, row in grouped.iterrows():
-    #coords = [int(row['x']), int(row['y'])]
-   # v_grid[coords[0], coords[1]] += row['v']
+for index, row in dinamics_frame_all.iterrows():
+    coords = [int(row['x']), int(row['y'])]
+    if row['v'] > 10:
+        v_grid[coords[0], coords[1]] += 1
   #  a_grid[coords[0], coords[1]] += row['a']
  #   n_grid[coords[0], coords[1]] += 1
 
-#v_grid = np.divide(v_grid, n_grid)
+v_grid = v_grid/50
+v_grid[v_grid==0] = np.nan
 #a_grid = np.divide(a_grid, n_grid)
-#plot_map(v_grid, [0,1], 'coolwarm', vmax=2, label='velocidad (cm/s)', filename='velocity_map_p6.svg')
+import seaborn as sns
+palette = sns.color_palette("ch:s=0.9,r=-0.55", as_cmap=True)
+obj_coords = np.array([492.52, 199.32])
+#plot_map(v_grid, objCoordinates=obj_coords, cmap=palette, vmax=5, label='Tiempo nadando a alta velocidad (s)', filename='velocity_map_p1.svg')
 #plot_map(a_grid, [0,1], 'coolwarm', vmax= .01, label='aceleracion (cm2/s)', filename='acceleration_map_p6.svg')
 
+bins_time = []
+fishdistance = np.zeros(shape=(len(v_frame_all),3))
+for i in range(len(v_frame_all)):
+    fishdistance[i,0]=v_frame_all.iloc[i,0]
+    fishdistance[i,1]=v_frame_all.iloc[i,1]
+    fishdistance[i,2]=distance.euclidean(obj_coords/12, [fishdistance[i,0],fishdistance[i,1]])
+
+for i in np.linspace(1,30,30):
+    subset = fishdistance[fishdistance[:,2]<i]
+    subset = subset[subset[:,2]>i-1]
+    time_high_v = []
+    for j in range(len(subset)):
+        time_high_v.append(v_grid[int(subset[j,0]), int(subset[j,1])])
+    if len(time_high_v) > 0:
+        bins_time.append(np.sum(time_high_v))
+
+np.savetxt('bins_p7.txt', np.array(bins_time))
