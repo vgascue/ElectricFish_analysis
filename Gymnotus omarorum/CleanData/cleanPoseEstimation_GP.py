@@ -10,7 +10,7 @@ import numpy as np
 import glob
 import os
 
-folder = r'D:\Datos G. omarorum\Fish6\Objeto\Trial 1 y 2\raw'
+folder = r'C:\Users\Compras\Desktop\videos_DLC'
 
 os.chdir(folder)
 
