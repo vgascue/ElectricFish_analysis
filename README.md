@@ -24,16 +24,13 @@ Estos scripts tienen como función evaluar la precisión de los analisis a reali
 - **Scripts de análisis:** 
         Estos scripts generan la estructura de datos que analizaremos a partir de los datos crudos. Es util correr primero los scripts exploratorios y luego estos. 
 
-<<<<<<< HEAD
-            1. EOD_analysis.py: 
-=======
    1. EOD_analysis.py: 
->>>>>>> 15505609e0d6213eb0aaa7aa6ae4e114bf7cc1b4
+
                 Este script tiene la misma funcionalidad que el exploratory_EOD pero para todos los archivos en una carpeta. Genera un diccionario con la FB-DOE y el tiempo de cada pico. 
                 El diccionario que guarda es un diccionario que contiene dos diccionarios: FB-DOE y Peak-time. Cada uno de estos diccionarios cuenta con un elemento por archivo cuya key es el nombre del archivo y el valor es un vector de FB-DOE y Peak-Time de cada archivo, respectivamete. Luego, este diccionario se utiliza en otros scripts para no re-detectar DOEs ni re-calcular la frecuencia basal. 
                 Por cada pez se tendrá un archivo '.pkl' salido de este script que guarda el diccionario generado. 
 
-<<<<<<< HEAD
+
                 La estructura del archivo .pkl es la siguiente:
                 ![data](r'ElectricFish_analysis\data.png')
 =======
