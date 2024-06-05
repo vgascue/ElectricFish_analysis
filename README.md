@@ -5,6 +5,8 @@ Cada archivo está comentado y con una breve introducciôn al comienzo. Los deta
 
 A su vez contiene scripts utilizados para el analisis de datos conductuales obtenidos en el laboratorio de Nate Sawtell (Columbia University) de individuos de la especie Gnathonemus Petersii (carpeta Gnathonemus Petersii). Estos scripts estan comentados pero no seran descritos en esta guia. 
 
+El siguiente diagrama esquematiza el funcionamiento de este repositorio y el tipo de datos que toma y que devuelve:
+![data](r'ElectricFish_analysis\diagrama.png')
 A continuación se detalla la funcionalidad de cada archivo y un sugerido workflow para comenzar el analisis de datos conductuales de la estacion. 
 
 - **Scripts de exploración**: 
@@ -33,7 +35,7 @@ Estos scripts tienen como función evaluar la precisión de los analisis a reali
 
                 La estructura del archivo .pkl es la siguiente:
                 ![data](r'ElectricFish_analysis\data.png')
-=======
+
       La estructura del archivo .pkl es la siguiente
         <img src="/images/data.png" alt="data_structure_EOD" width="400"/>
 >>>>>>> 15505609e0d6213eb0aaa7aa6ae4e114bf7cc1b4
