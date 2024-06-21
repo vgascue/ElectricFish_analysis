@@ -1,7 +1,3 @@
-#Este script tiene la misma funcionalidad que el exploratory_EOD pero para todos los archivos en una carpeta. Genera un diccionario con la FB-DOE y el tiempo de cada pico. 
-#El diccionario que guarda es un diccionario que contiene dos diccionarios: FB-DOE y Peak-time. Cada uno de estos diccionarios cuenta con un elemento por archivo cuya key es el nombre del archivo y el valor es un vector de FB-DOE y Peak-Time de cada archivo, respectivamete.
-
-import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import glob
@@ -10,63 +6,166 @@ import pickle
 from scipy.stats import zscore
 from scipy.signal import find_peaks, butter, sosfilt
 
-data_folder = '/Volumes/Expansion/Datos G. omarorum/Fish7/Trial 3 y 4' #cambiar a ruta con archivos .bin
-os.chdir(data_folder)
-files = sorted(glob.glob( '*.bin'))
+#Funciones relacionadas al analisis inicial de la Frecuencia Basal de la DOE
 
-print('hay ' + str(len(files)) + ' archivos', files[0])
+def deteccion_picos(duracion: int, z_score: np.array, umbral: int, distancia: int):
+    """
+    Esta funcion detecta los picos de la DOE para un determinado umbral y distancia. El umbral se determinara previamente observando la senal electrica.
+    Entradas: 
+        duracion (int) = duracion en segundos de cada registro electrico (cada archivo)
+        z_score (np.array) = numpy array conteniendo el zscore de la senal electrica
+        umbral (int) = valor de umbral de deteccion
+        distancia (int) = duracion de la DOE, esta puede cambiar segun la especie. Este parametro determinara que no se detecte una misma DOE mas de una vez. Para G. omarorum se recomienda que distancia = 150
+    Salidas:
+        EOD_frequencies (np.array) = np array conteniendo las frecuencias instantaneas de la DOE para la senal brindada
+        EOD_peaks (np.array) = np array con los tiempos (en indices) donde se da cada DOE
 
-#setear parametros
-sf = 10000 #hertz
-duration = 20 * 60 #en segundos
-
-#creamos el diccionario vacio
-fish = {
-         'FB-DOE': {},
-         'Peak-time': {}}
-
-for i in range(len(files)):
-    EOD = np.fromfile(files[i],dtype=np.int16)
-    EOD_ch = EOD.reshape((int(EOD.shape[0]/2), 2 ))
-    
-    #Pre-procesamos para nivelar el ruido
-    medianCh0 = np.median(EOD_ch[:,0])
-    medianCh1 = np.median(EOD_ch[:,1])
-            
-    EOD_ch[:,0] -= int(medianCh0)
-    EOD_ch[:,1] -= int(medianCh1)
-
-    # combinamos los dos canales, de haber mas canales agregar terminos apropiados a la ecuacion
-    EOD = np.square(EOD_ch[:,0], dtype=np.int32) + np.square(EOD_ch[:,1], dtype=np.int32)
-    # calculamos el z-score
-    z_score = zscore(EOD)
-
-    # detectamos picos y generamos el vector de tiempo
-    threshold = 0 #cambiar umbral
-    EODTime = np.linspace(0, 20*60, len(EOD))
-    EOD_peaks, _ = find_peaks(z_score, height = threshold, distance=150)
-    #calculamos los intervalos y frecuencias
+    """
+    EODTime = np.linspace(0, duracion, len(z_score)) #duracion en s
+    EOD_peaks, _ = find_peaks(z_score, height = umbral, distance=distancia)
+        #calculamos los intervalos y frecuencias
     EOD_intervals = np.diff(EODTime[EOD_peaks])
     EOD_frequencies = [1/j for j in EOD_intervals]
+
+    return EOD_frequencies, EOD_peaks
+
+def preprocesar_EOD(EOD: np.array, fm: int):
+    """
+    Este es un paso opcional en el procesamiento. Implica alinear los canales al 0 para asegurar no perder ninguna senal, y un filtro de banda.
+
+    Entradas:
+        EOD = registro electrico (un unico canal)
+        fm = frecuencia de muestreo mediante la cual se obtuvo el registro
+
+    Salida:
+        Senal preprocesada
+    """
+    EOD -= np.median(EOD)
+    sos = butter(3, [300,3000], btype='bandpass', fs=fm, output='sos')
+    EOD = sosfilt(sos, EOD)
+
+    return EOD
+
+def FB_DOE_analysis(data_folder: str, fm: int, duracion: int, nombre_guardar: str, distancia=150, n_canales=2, preprocesar=True):
+    """
+    Esta funcion tiene como finalidad obtener la frecuencia instantanea de la DOE para todos los archivos de registro de un mismo 
+    experimento.
+    Entradas: 
+        data_folder (str): carpeta donde se encuentran los archivos '.bin' con los registros electricos
+        fm (int): frecuencia de muestreo mediante la cual se obtuvieron los registros
+        duracion (int): duracion de cada archivo de registro expresado en segundos
+        nombre_guardar (str): nombre del archivo '.pkl' donde se guardaran las FB-DOE. Recordar agregar '.pkl' al final
+        distancia (int) : duracion de la DOE, esta puede cambiar segun la especie. Este parametro determinara que no se detecte 
+                            una misma DOE mas de una vez. Para G. omarorum se recomienda que distancia = 150
+        n_canales (int) : numero de canales que se utilizaron para registrar. Default: 2
+        preprocesar (bool) : determina si se preprocesa la senal o no. Default: True
     
-    #guardamos
-    name = files[i][10:-3] 
-    fish['FB-DOE'][name] = EOD_frequencies
-    fish['Peak-time'][name] = EOD_peaks
-    print('Termino archivo ' + str(i))
+    Salidas: 
+        Guarda en la carpeta brindada (data_folder) un archivo '.pkl' que contiene un diccionario. Este diccionario contiene las 
+        frecuencias instantaneas de la DOE y los tiempos (en indices) en los cuales se da cada descarga. 
+        El diccionario contiene dos sub-diccionarios 'FB-DOE' y 'Peak-time'. En cada uno de ellos se guarda bajo una clave que indica
+        el nombre del archivo correspondiente, la frecuencia instantanea y tiempos de descarga, respectivamente.
+    """
+    os.chdir(data_folder)
+    archivos = sorted(glob.glob( '*.bin'))
+    print('Hay ' + str(len(archivos)) + ' archivos')
 
-with open('fish6_FB-DOE_D2.pkl', 'wb') as fp: #cambiar nombre a nombre deseado del archivo a guardar
-    pickle.dump(fish, fp)
+    #creamos el diccionario vacio
+    fish = {
+            'FB-DOE': {},
+            'Peak-time': {}}
 
+    for k, archivo in enumerate(archivos):
+        EOD = np.fromfile(archivo,dtype=np.int16) #cargamos el archivo
+        EOD_ch = EOD.reshape((int(EOD.shape[0]/n_canales),n_canales))
+    
+        if preprocesar:
+            #Pre-procesamos para nivelar el ruido
+            for column in EOD_ch.columns:
+                EOD_ch[column] = preprocesar_EOD(EOD_ch[column], fm)
 
-Means = []
-for i in range(len(files)):
-    key = list(fish['FB-DOE'].keys())[i]
-    mean = np.median(fish['FB-DOE'][key])
-    Means.append(mean)
+        # combinamos los  canales sumando los cuadrados de los mismos
+        for i,column in enumerate(EOD_ch.columns):
+            if i == 0:
+                EOD = np.square(EOD_ch[column], dtype=np.int32)
+            else:
+                EOD += np.square(EOD_ch[column], dtype=np.int32) 
+        
+        # calculamos el z-score
+        z_score = zscore(EOD)
 
-#plot median FB-DOE per 20min (1 file)
-plt.figure()
-plt.plot(Means)
-plt.scatter(range(len(Means)),Means)
-plt.show()
+        if k == 0:
+            plt.figure()
+            plt.plot(z_score[:15000])
+            plt.show()
+            umbral = input("Introduzca el umbral para la deteccion de DOEs: ")
+
+        # detectamos picos y generamos el vector de tiempo
+        EOD_frequencies, EOD_peaks = deteccion_picos(duracion, z_score, umbral, distancia)
+        
+        #guardamos
+        name = archivo[10:-3] #esto puede cambiar 
+        fish['FB-DOE'][name] = EOD_frequencies
+        fish['Peak-time'][name] = EOD_peaks
+        print('Termino archivo ' + str(k))
+
+    with open(nombre_guardar, 'wb') as fp:
+        pickle.dump(fish, fp)
+
+def obtener_FBDOE_media(archivo_pez: dict, duracion: int, graficar=True):
+    """
+    Esta funcion calcula y grafica la mediana y desvio para cada archivo de registro electrico. 
+    Entradas:
+        archivo_pez (dict): diccionario conteniendo la FB-doe del pez para cada archivo de registro. Obtenido de FB_DOE_analysis.
+        graficar (bool): determina si graficar la frecuencia media en el tiempo. Default True. La figura se guardara en la carpeta
+                        donde se este trabajando
+
+    Salidas:
+        Means (list): lista que contiene la FB-doe mediana para cada archivo brindado, ordenadas en el tiempo
+        Desvio (list): lista que contiene el desvio estandar para cada archivo brindado, ordenadas en el tiempo
+    """
+    Means = []
+    Desvio = []
+    for key in sorted(list(archivo_pez['FB-DOE'].keys())):
+        mean = np.median(archivo_pez['FB-DOE'][key])
+        std = np.std(archivo_pez['FB-DOE'][key])
+        Means.append(mean)
+        Desvio.append(std)
+
+    if graficar:
+        x = np.linspace(0, duracion*len(Means), num=len(Means))
+        fig, ax = plt.figure()
+        ax.plot(x,Means, c='k')
+        ax.scatter(x, Means, c='k')
+        ax.fill_between(x, Means-std, Means+std, c='b', alpha=.5)
+        ax.set(xlabel='Tiempo (min)', ylabel='FB-DOE mediana (Hz)')
+        fig.savefig('FB_DOE_mediana.svg', format='svg')
+        plt.show()
+
+    return Means, std
+
+def detectar_eventos(EOD_zscore: np.array, EOD_peak_time: np.array, umbral_evento: float):
+        """
+        Esta funcion detecta eventos de alta frecuencia en el registro electrico. Detecta un evento si el zscore de la FB-DOE 
+        supera cierto umbral y lo sostiene por al menos 3 DOEs consecutivas. 
+
+        Entradas:
+            EOD_zscore (np.array): contiene valores de zscore de la FB-DOE
+            EOD_peak_time (np.array): tiempos correspondientes a los zscore brindados donde se dan los picos 
+            umbral_eventos (float): valor umbral para definir una frecuencia instantanea como de alta frecuencia. Por referencia, 
+                                    1.5 equivale a tomar valores de FB-DOE mayores a la media mas 1.5 desvios estandar. 
+
+        Salidas:
+            i_novel (np.array): np array que contiene los indices donde se da un evento de alta frecuencia (primer DOE)
+            novel (np.array): valores de zscore correspondientes al comiento de cada evento (correspondiente a cada i_novel)
+        """
+        events =[]
+        for k in np.arange(1,len(EOD_zscore)-3):
+            is_event = EOD_zscore[k] > umbral_evento and EOD_zscore[k+1] > umbral_evento and EOD_zscore[k+2] > umbral_evento and EOD_zscore[k-1] < umbral_evento
+            if is_event: 
+                events.append(k) 
+            i_novel = EOD_peak_time[[k for k in events]]
+            novel = EOD_zscore[events]
+        
+        return i_novel, novel
+            
